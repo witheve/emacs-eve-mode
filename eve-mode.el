@@ -107,10 +107,10 @@
       (forward-line diff)
       (let ((bound (line-end-position)) (levels 0))
         (while (eve-search-forward "[])([]" bound)
-          (if-let ((prev (string (char-before)))
-                   (_ (or (equal prev "[" ) (equal prev "(" ))))
-              (setq levels (+ levels 1))
-            (setq levels (- levels 1))))
+          (let ((prev (string (char-before))))
+            (if (or (equal prev "[" ) (equal prev "(" ))
+                (setq levels (+ levels 1))
+              (setq levels (- levels 1)))))
         levels)))
 
   ;; @FIXME: This is a bit of a time bomb -- it's not string aware.
@@ -195,10 +195,8 @@
     "Retrieve a code block's info string.  Defaults to 'eve-block'."
     (save-excursion
       (re-search-forward "^\\([`]\\{3,\\}\\|[~]\\{3,\\}\\)\s*\\(.*\\)\s*$" (line-end-position) t)
-      (if-let ((info (match-string 2))
-               (_ (not (equal info ""))))
-          (if (equal info "eve") "eve-block" info)
-        "eve-block")))
+      (let ((info (match-string 2)))
+        (if (or (not info) (equal info "") (equal info "eve")) "eve-block" info))))
 
   (defcustom eve-pm-host-eve-doc
     (pm-bchunkmode :mode 'markdown-mode
