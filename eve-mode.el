@@ -47,6 +47,7 @@
 ;;; Code:
 
 (require 'polymode)
+(require 'poly-markdown)
 (require 'markdown-mode)
 
 (defvar eve-indent-width 2 "Spaces per indentation level in Eve blocks.")
