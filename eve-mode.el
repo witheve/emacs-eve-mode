@@ -47,7 +47,6 @@
 ;;; Code:
 
 (require 'polymode)
-(require 'poly-markdown)
 (require 'markdown-mode)
 
 (defvar eve-indent-width 2 "Spaces per indentation level in Eve blocks.")
@@ -203,7 +202,7 @@
 
   (defcustom eve-pm-host-eve-doc
     (pm-bchunkmode :mode 'markdown-mode
-                   :init-functions '(poly-markdown-remove-markdown-hooks))
+                   :init-functions '(eve-poly-markdown-remove-markdown-hooks))
     "Markdown host chunkmode."
     :group 'hostmodes
     :type 'object)
@@ -229,6 +228,15 @@
   (setq auto-mode-alist
         (append
          '(("\\.eve\\'" . eve-mode)))))
+
+
+;;; FIXES:
+;; source <https://github.com/vspinu/polymode/blob/master/modes/poly-markdown.el>
+(defun eve-poly-markdown-remove-markdown-hooks ()
+  "Get rid of markdown hooks that make polymode sad."
+  (remove-hook 'window-configuration-change-hook 'markdown-fontify-buffer-wiki-links t)
+  (remove-hook 'after-change-functions 'markdown-check-change-for-wiki-link t))
+
 
 (provide 'eve-block-mode)
 (provide 'eve-mode)
