@@ -7,7 +7,7 @@
 ;; Version: 0.1.0
 ;; Package-Requires: ((emacs "25") (polymode "1.0") (markdown-mode "2.0"))
 ;; Keywords: languages wp tools
-;; URL: ######################################################################################33
+;; URL: https://github.com/witheve/emacs-eve-mode
 
 ;; This file is not part of GNU Emacs.
 
