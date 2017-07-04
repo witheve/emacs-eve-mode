@@ -143,14 +143,14 @@
           ;; Walk forward line by line, indenting as we go.
           (while (>= lines-back 0)
             ;; If we've *decreased* levels on *this* line, dedent ourselves by that many levels.
-            (when-let ((levels (eve-levels-opened 0))
-                       (_ (< levels 0)))
-              (setq cur-indent (max (+ cur-indent (* levels eve-indent-width)) 0)))
+            (let ((levels (eve-levels-opened 0)))
+              (when (< levels 0)
+                (setq cur-indent (max (+ cur-indent (* levels eve-indent-width)) 0))))
 
             ;; If we've *increased* levels on the *previous* line, dedent ourselves by that many levels.
-            (when-let ((levels (eve-levels-opened -1))
-                       (_ (> levels 0)))
-              (setq cur-indent (+ cur-indent (* levels eve-indent-width))))
+            (let ((levels (eve-levels-opened -1)))
+              (when (> levels 0)
+                (setq cur-indent (+ cur-indent (* levels eve-indent-width)))))
 
             ;; It turns out this is hard to generally solve without actually parsing the file. We'll add proper if indentation when
             ;; the language service comes out or I have more free time to burn. In the meantime we'll just treat if/then like ( ).
