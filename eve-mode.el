@@ -89,18 +89,18 @@
   (defun eve-has-font-lock-face-at-p (face pos)
     (member face (get-text-property pos 'face)))
 
-  (defun eve-search-forward (regexp &optional bound end)
+  (defun eve-search-forward (regexp &optional bound face end)
     (let (offset)
       (while (and (not offset) (re-search-forward regexp bound t))
-        (when (not (eve-has-font-lock-face-at-p 'font-lock-string-face (point)))
+        (when (eve-has-font-lock-face-at-p face (- (point) 1))
           (setq offset (- (point) (line-beginning-position) (if end 0 (length (match-string 0)))))))
       offset))
 
-  (defun eve-find-offset (regexp &optional diff end)
+  (defun eve-find-offset (regexp &optional diff face end)
     (save-excursion
       (forward-line diff)
       (let ((bound (line-end-position)))
-        (eve-search-forward regexp bound end))))
+        (eve-search-forward regexp bound face end))))
 
   (defun eve-levels-opened (diff)
     (save-excursion
@@ -152,28 +152,12 @@
               (when (> levels 0)
                 (setq cur-indent (+ cur-indent (* levels eve-indent-width)))))
 
-            ;; It turns out this is hard to generally solve without actually parsing the file. We'll add proper if indentation when
-            ;; the language service comes out or I have more free time to burn. In the meantime we'll just treat if/then like ( ).
-            ;; (when-let ((subblock-offset (eve-if-subblock-offset)))
-            ;;   (cond
-            ;;    ;; If the current line contains an if or else, we'd like to statement align with the current if-subblock.
-            ;;    ((or (eve-find-offset "if" 0) (eve-find-offset "else" 0))
-            ;;     (setq cur-indent subblock-offset))
-
-            ;;    ;; If the previous line was a then, reset the indentation.
-            ;;    ((eve-find-offset "then" -1)
-            ;;     (setq cur-indent eve-indent-width))
-
-            ;;    ;; Otherwise align with the statement body.
-            ;;    ((setq cur-indent (+ subblock-offset 3)))
-            ;;     ))
-
             ;; If the previous line had an if statement, we'll indent one level.
-            (let ((if-offset (eve-find-offset "if" -1)))
+            (let ((if-offset (eve-find-offset "if" -1 'font-lock-keyword-face)))
               (when if-offset
                 (setq cur-indent (+ cur-indent eve-indent-width))))
             ;; If the previous line had a then statement, we'll dedent one level.
-            (let ((then-offset (eve-find-offset "then" -1)))
+            (let ((then-offset (eve-find-offset "then" -1 'font-lock-keyword-face)))
               (when then-offset
                 (setq cur-indent (- cur-indent eve-indent-width))))
 
