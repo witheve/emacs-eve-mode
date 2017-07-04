@@ -206,8 +206,8 @@
     :type 'object)
 
   (defcustom  eve-pm-inner-eve-block
-    (pm-hbtchunkmode-auto :head-reg "^[ \t]*~~~.*$"
-                          :tail-reg "^[ \t]*~~~[ \t]*$"
+    (pm-hbtchunkmode-auto :head-reg "^[ \t]*[`]\\{3,\\}\\|[~]\\{3,\\}.*$"
+                          :tail-reg "^[ \t]*[`]\\{3,\\}\\|[~]\\{3,\\}[ \t]*$"
                           :retriever-function 'eve-retrieve-block-type
                           :font-lock-narrow t)
     "Eve block chunk."
