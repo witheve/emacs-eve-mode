@@ -169,11 +169,13 @@
             ;;     ))
 
             ;; If the previous line had an if statement, we'll indent one level.
-            (when-let ((if-offset (eve-find-offset "if" -1)))
-              (setq cur-indent (+ cur-indent eve-indent-width)))
+            (let ((if-offset (eve-find-offset "if" -1)))
+              (when if-offset
+                (setq cur-indent (+ cur-indent eve-indent-width))))
             ;; If the previous line had a then statement, we'll dedent one level.
-            (when-let ((then-offset (eve-find-offset "then" -1)))
-              (setq cur-indent (- cur-indent eve-indent-width)))
+            (let ((then-offset (eve-find-offset "then" -1)))
+              (when then-offset
+                (setq cur-indent (- cur-indent eve-indent-width))))
 
             (setq lines-back (- lines-back 1))
             (forward-line 1))))
