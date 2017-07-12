@@ -3,8 +3,8 @@
 ;; Author: Joshua Cole <joshuafcole@gmail.com>
 ;; Maintainer: Joshua Cole <joshuafcole@gmail.com>
 ;; Created: 28 Jun 2017
-;; Modified: 3 Jul 2017
-;; Version: 0.1.0
+;; Modified: 12 Jul 2017
+;; Version: 0.1.1
 ;; Package-Requires: ((emacs "25") (polymode "1.0") (markdown-mode "2.0"))
 ;; Keywords: languages wp tools
 ;; URL: https://github.com/witheve/emacs-eve-mode
