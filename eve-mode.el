@@ -52,166 +52,163 @@
 (defvar eve-indent-width 2 "Spaces per indentation level in Eve blocks.")
 (defvar eve-font-lock-keywords nil "Font lock setup for eve-block mode.")
 
-(let*  ((eve-sections '("search" "bind" "commit"))
-       (eve-subblocks '("not" "if" "then" "else"))
-       (eve-infix '("+" "-" "/" "*"))
-       (eve-filter '("=" "!=" "<" "<=" ">=" ">"))
-       (eve-update-operator '(":=" "+=" "-=" "<-"))
+(setq eve-sections '("search" "bind" "commit"))
+(setq eve-subblocks '("not" "if" "then" "else"))
+(setq eve-infix '("+" "-" "/" "*"))
+(setq eve-filter '("=" "!=" "<" "<=" ">=" ">"))
+(setq eve-update-operator '(":=" "+=" "-=" "<-"))
 
-       (eve-comment-regexp "//.*$")
-       (eve-sections-regexp (regexp-opt eve-sections 'words))
-       (eve-subblocks-regexp (regexp-opt eve-subblocks 'words))
-       (eve-infix-regexp (concat "\s" (regexp-opt eve-infix) "\s"))
-       (eve-filter-regexp (concat "\s" (regexp-opt eve-filter) "\s"))
-       (eve-update-operator-regexp (concat "\s" (regexp-opt eve-update-operator) "\s"))
-       (eve-misc-regexp "[][,:.]")
+(setq eve-comment-regexp "//.*$")
+(setq eve-sections-regexp (regexp-opt eve-sections 'words))
+(setq eve-subblocks-regexp (regexp-opt eve-subblocks 'words))
+(setq eve-infix-regexp (concat "\s" (regexp-opt eve-infix) "\s"))
+(setq eve-filter-regexp (concat "\s" (regexp-opt eve-filter) "\s"))
+(setq eve-update-operator-regexp (concat "\s" (regexp-opt eve-update-operator) "\s"))
+(setq eve-misc-regexp "[][,:.]")
 
-       (eve-identifier-regexp "[^][\t\s|(){}\"',.:=#\n]+")
-       (eve-tag-regexp (concat "#" eve-identifier-regexp))
-       (eve-syntax-table (make-syntax-table)))
+(setq eve-identifier-regexp "[^][\t\s|(){}\"',.:=#\n]+")
+(setq eve-tag-regexp (concat "#" eve-identifier-regexp))
+(setq eve-syntax-table (make-syntax-table))
 
-  (setq eve-font-lock-keywords
-        `(
-          ;; (,eve-comment-regexp . font-lock-comment-face)
-          (,eve-sections-regexp . font-lock-keyword-face)
-          (,eve-subblocks-regexp . font-lock-keyword-face)
-          (,eve-update-operator-regexp . font-lock-type-face)
-          (,eve-filter-regexp . font-lock-type-face)
-          (,eve-infix-regexp . font-lock-type-face)
-          (,eve-tag-regexp . font-lock-variable-name-face)
-          ;; (,eve-identifier-regexp . font-lock-variable-name-face)
-          (,eve-misc-regexp . font-lock-comment-delimiter-face)))
+(setq eve-font-lock-keywords
+      `((,eve-sections-regexp . font-lock-keyword-face)
+        (,eve-subblocks-regexp . font-lock-keyword-face)
+        (,eve-update-operator-regexp . font-lock-type-face)
+        (,eve-filter-regexp . font-lock-type-face)
+        (,eve-infix-regexp . font-lock-type-face)
+        (,eve-tag-regexp . font-lock-variable-name-face)
+        (,eve-misc-regexp . font-lock-comment-delimiter-face)))
 
-  (modify-syntax-entry ?\/ ". 12b" eve-syntax-table)
-  (modify-syntax-entry ?\n "> b" eve-syntax-table)
-  (modify-syntax-entry ?\r "> b" eve-syntax-table)
+(modify-syntax-entry ?\/ ". 12b" eve-syntax-table)
+(modify-syntax-entry ?\n "> b" eve-syntax-table)
+(modify-syntax-entry ?\r "> b" eve-syntax-table)
 
-  (defun eve-has-font-lock-face-at-p (face pos)
-    (member face (get-text-property pos 'face)))
+(defun eve-has-font-lock-face-at-p (face pos)
+  (member face (get-text-property pos 'face)))
 
-  (defun eve-search-forward (regexp &optional bound face end)
-    (let (offset)
-      (while (and (not offset) (re-search-forward regexp bound t))
-        (when (eve-has-font-lock-face-at-p face (- (point) 1))
-          (setq offset (- (point) (line-beginning-position) (if end 0 (length (match-string 0)))))))
-      offset))
+(defun eve-search-forward (regexp &optional bound face end)
+  (let (offset)
+    (while (and (not offset) (re-search-forward regexp bound t))
+      (when (eve-has-font-lock-face-at-p face (- (point) 1))
+        (setq offset (- (point) (line-beginning-position) (if end 0 (length (match-string 0)))))))
+    offset))
 
-  (defun eve-find-offset (regexp &optional diff face end)
+(defun eve-find-offset (regexp &optional diff face end)
+  (save-excursion
+    (forward-line diff)
+    (let ((bound (line-end-position)))
+      (eve-search-forward regexp bound face end))))
+
+(defun eve-levels-opened (diff)
+  (save-excursion
+    (forward-line diff)
+    (let ((bound (line-end-position)) (levels 0))
+      (while (eve-search-forward "[])([]" bound)
+        (let ((prev (string (char-before))))
+          (if (or (equal prev "[" ) (equal prev "(" ))
+              (setq levels (+ levels 1))
+            (setq levels (- levels 1)))))
+      levels)))
+
+;; @FIXME: This is a bit of a time bomb -- it's not string aware.
+(defun eve-rewind-until (regexp)
+  (let ((lines-back 0))
+    (while (not (or (bobp) (looking-at regexp)))
+      (setq lines-back (+ lines-back 1))
+      (forward-line -1))
+    lines-back))
+
+
+;; Based on frink-mode's well commented indent-line function.
+;; <https://futureboy.us/frinktools/emacs/frink-mode.el>
+(defun eve-indent-line ()
+  "Indent current line as eve code."
+  (interactive)
+
+  (let ((lines-back 0) cur-indent)
     (save-excursion
-      (forward-line diff)
-      (let ((bound (line-end-position)))
-        (eve-search-forward regexp bound face end))))
+      ;; First, we scan back to the nearest section keyword.
+      (setq lines-back (eve-rewind-until (concat "^[\s\t]*" eve-sections-regexp)))
 
-  (defun eve-levels-opened (diff)
-    (save-excursion
-      (forward-line diff)
-      (let ((bound (line-end-position)) (levels 0))
-        (while (eve-search-forward "[])([]" bound)
-          (let ((prev (string (char-before))))
-            (if (or (equal prev "[" ) (equal prev "(" ))
-                (setq levels (+ levels 1))
-              (setq levels (- levels 1)))))
-        levels)))
+      ;; If we couldn't find one, we're just done trying to indent.
+      (when (not (bobp))
+        ;; Section headers are indented to zero, section contents start indented one level.
+        (if (> lines-back 0)
+            (setq cur-indent eve-indent-width)
+          (setq cur-indent 0))
 
-  ;; @FIXME: This is a bit of a time bomb -- it's not string aware.
-  (defun eve-rewind-until (regexp)
-    (let ((lines-back 0))
-      (while (not (or (bobp) (looking-at regexp)))
-        (setq lines-back (+ lines-back 1))
-        (forward-line -1))
-      lines-back))
+        ;; Walk forward line by line, indenting as we go.
+        (while (>= lines-back 0)
+          ;; If we've *decreased* levels on *this* line, dedent ourselves by that many levels.
+          (let ((levels (eve-levels-opened 0)))
+            (when (< levels 0)
+              (setq cur-indent (max (+ cur-indent (* levels eve-indent-width)) 0))))
 
+          ;; If we've *increased* levels on the *previous* line, dedent ourselves by that many levels.
+          (let ((levels (eve-levels-opened -1)))
+            (when (> levels 0)
+              (setq cur-indent (+ cur-indent (* levels eve-indent-width)))))
 
-  ;; Based on frink-mode's well commented indent-line function.
-  ;; <https://futureboy.us/frinktools/emacs/frink-mode.el>
-  (defun eve-indent-line ()
-    "Indent current line as eve code."
-    (interactive)
+          ;; If the previous line had an if statement, we'll indent one level.
+          (let ((if-offset (eve-find-offset "if" -1 'font-lock-keyword-face)))
+            (when if-offset
+              (setq cur-indent (+ cur-indent eve-indent-width))))
+          ;; If the previous line had a then statement, we'll dedent one level.
+          (let ((then-offset (eve-find-offset "then" -1 'font-lock-keyword-face)))
+            (when then-offset
+              (setq cur-indent (- cur-indent eve-indent-width))))
 
-    (let ((lines-back 0) cur-indent)
-      (save-excursion
-        ;; First, we scan back to the nearest section keyword.
-        (setq lines-back (eve-rewind-until (concat "^[\s\t]*" eve-sections-regexp)))
+          (setq lines-back (- lines-back 1))
+          (forward-line 1))))
 
-        ;; If we couldn't find one, we're just done trying to indent.
-        (when (not (bobp))
-          ;; Section headers are indented to zero, section contents start indented one level.
-          (if (> lines-back 0)
-              (setq cur-indent eve-indent-width)
-            (setq cur-indent 0))
-
-          ;; Walk forward line by line, indenting as we go.
-          (while (>= lines-back 0)
-            ;; If we've *decreased* levels on *this* line, dedent ourselves by that many levels.
-            (let ((levels (eve-levels-opened 0)))
-              (when (< levels 0)
-                (setq cur-indent (max (+ cur-indent (* levels eve-indent-width)) 0))))
-
-            ;; If we've *increased* levels on the *previous* line, dedent ourselves by that many levels.
-            (let ((levels (eve-levels-opened -1)))
-              (when (> levels 0)
-                (setq cur-indent (+ cur-indent (* levels eve-indent-width)))))
-
-            ;; If the previous line had an if statement, we'll indent one level.
-            (let ((if-offset (eve-find-offset "if" -1 'font-lock-keyword-face)))
-              (when if-offset
-                (setq cur-indent (+ cur-indent eve-indent-width))))
-            ;; If the previous line had a then statement, we'll dedent one level.
-            (let ((then-offset (eve-find-offset "then" -1 'font-lock-keyword-face)))
-              (when then-offset
-                (setq cur-indent (- cur-indent eve-indent-width))))
-
-            (setq lines-back (- lines-back 1))
-            (forward-line 1))))
-
-      (when cur-indent
-        (indent-line-to cur-indent))))
+    (when cur-indent
+      (indent-line-to cur-indent))))
 
 
-  (define-derived-mode eve-block-mode fundamental-mode "eve-block"
-    "Major mode for editing Eve documents"
-    (setq font-lock-multiline t)
-    (set-syntax-table eve-syntax-table)
-    (setq font-lock-defaults '((eve-font-lock-keywords)))
-    (make-local-variable 'indent-line-function)
-    (setq indent-line-function 'eve-indent-line))
+(define-derived-mode eve-block-mode fundamental-mode "eve-block"
+  "Major mode for editing Eve documents"
+  (setq font-lock-multiline t)
+  (set-syntax-table eve-syntax-table)
+  (setq font-lock-defaults '((eve-font-lock-keywords)))
+  (make-local-variable 'indent-line-function)
+  (setq indent-line-function 'eve-indent-line))
 
 
-  (defun eve-retrieve-block-type ()
-    "Retrieve a code block's info string.  Defaults to 'eve-block'."
-    (save-excursion
-      (re-search-forward "^\\([`]\\{3,\\}\\|[~]\\{3,\\}\\)\s*\\(.*\\)\s*$" (line-end-position) t)
-      (let ((info (match-string 2)))
-        (if (or (not info) (equal info "") (equal info "eve")) "eve-block" info))))
+(defun eve-retrieve-block-type ()
+  "Retrieve a code block's info string.  Defaults to 'eve-block'."
+  (save-excursion
+    (re-search-forward "^\\([`]\\{3,\\}\\|[~]\\{3,\\}\\)\s*\\(.*\\)\s*$" (line-end-position) t)
+    (let ((info (match-string 2)))
+      (if (or (not info) (equal info "") (equal info "eve")) "eve-block" info))))
 
-  (defcustom eve-pm-host-eve-doc
-    (pm-bchunkmode :mode 'markdown-mode
-                   :init-functions '(eve-poly-markdown-remove-markdown-hooks))
-    "Markdown host chunkmode."
-    :group 'hostmodes
-    :type 'object)
+(defcustom eve-pm-host-eve-doc
+  (pm-bchunkmode :mode 'markdown-mode
+                 :init-functions '(eve-poly-markdown-remove-markdown-hooks))
+  "Markdown host chunkmode."
+  :group 'hostmodes
+  :type 'object)
 
-  (defcustom  eve-pm-inner-eve-block
-    (pm-hbtchunkmode-auto :head-reg "^[ \t]*[`]\\{3,\\}\\|[~]\\{3,\\}.*$"
-                          :tail-reg "^[ \t]*[`]\\{3,\\}\\|[~]\\{3,\\}[ \t]*$"
-                          :retriever-function 'eve-retrieve-block-type
-                          :font-lock-narrow t)
-    "Eve block chunk."
-    :group 'innermodes
-    :type 'object)
+(defcustom  eve-pm-inner-eve-block
+  (pm-hbtchunkmode-auto :head-reg "^[ \t]*[`]\\{3,\\}\\|[~]\\{3,\\}.*$"
+                        :tail-reg "^[ \t]*[`]\\{3,\\}\\|[~]\\{3,\\}[ \t]*$"
+                        :retriever-function 'eve-retrieve-block-type
+                        :font-lock-narrow t)
+  "Eve block chunk."
+  :group 'innermodes
+  :type 'object)
 
-  (defcustom eve-pm-poly-eve
-    (pm-polymode-multi-auto :hostmode 'eve-pm-host-eve-doc
-                            :auto-innermode 'eve-pm-inner-eve-block)
-    "Markdown typical configuration."
-    :group 'polymodes
-    :type 'object)
+(defcustom eve-pm-poly-eve
+  (pm-polymode-multi-auto :hostmode 'eve-pm-host-eve-doc
+                          :auto-innermode 'eve-pm-inner-eve-block)
+  "Markdown typical configuration."
+  :group 'polymodes
+  :type 'object)
 
-  (define-polymode eve-mode eve-pm-poly-eve)
+(define-polymode eve-mode eve-pm-poly-eve)
 
-  (setq auto-mode-alist
-        (append
-         '(("\\.eve\\'" . eve-mode)))))
+(setq auto-mode-alist
+      (append
+       '(("\\.eve\\'" . eve-mode))))
 
 
 ;;; FIXES:
@@ -221,8 +218,6 @@
   (remove-hook 'window-configuration-change-hook 'markdown-fontify-buffer-wiki-links t)
   (remove-hook 'after-change-functions 'markdown-check-change-for-wiki-link t))
 
-
-(provide 'eve-block-mode)
 (provide 'eve-mode)
 
 ;;; eve-mode.el ends here
