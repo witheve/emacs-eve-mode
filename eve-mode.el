@@ -89,7 +89,7 @@
 (defun eve-search-forward (regexp &optional bound face end)
   (let (offset)
     (while (and (not offset) (re-search-forward regexp bound t))
-      (when (eve-has-font-lock-face-at-p face (- (point) 1))
+      (when (or (not face) (eve-has-font-lock-face-at-p face (- (point) 1)))
         (setq offset (- (point) (line-beginning-position) (if end 0 (length (match-string 0)))))))
     offset))
 
@@ -118,10 +118,9 @@
         (setq levels (+ levels 1)))
       levels)))
 
-;; @FIXME: This is a bit of a time bomb -- it's not string aware.
 (defun eve-rewind-until (regexp)
   (let ((lines-back 0))
-    (while (not (or (bobp) (looking-at regexp)))
+    (while (not (or (bobp) (eve-search-forward regexp (line-end-position) 'font-lock-keyword-face)))
       (setq lines-back (+ lines-back 1))
       (forward-line -1))
     lines-back))
