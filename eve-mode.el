@@ -3,7 +3,7 @@
 ;; Author: Joshua Cole <joshuafcole@gmail.com>
 ;; Maintainer: Joshua Cole <joshuafcole@gmail.com>
 ;; Created: 28 Jun 2017
-;; Modified: 12 Jul 2017
+;; Modified: 19 Jul 2017
 ;; Version: 0.1.1
 ;; Package-Requires: ((emacs "25") (polymode "1.0") (markdown-mode "2.0"))
 ;; Keywords: languages wp tools
@@ -52,7 +52,7 @@
 (defvar eve-indent-width 2 "Spaces per indentation level in Eve blocks.")
 (defvar eve-font-lock-keywords nil "Font lock setup for eve-block mode.")
 
-(setq eve-sections '("search" "bind" "commit" "watch"))
+(setq eve-sections '("search" "bind" "commit" "watch" "end"))
 (setq eve-subblocks '("not" "if" "then" "else"))
 (setq eve-infix '("+" "-" "/" "*"))
 (setq eve-filter '("=" "!=" "<" "<=" ">=" ">"))
