@@ -52,7 +52,7 @@
 (defvar eve-indent-width 2 "Spaces per indentation level in Eve blocks.")
 (defvar eve-font-lock-keywords nil "Font lock setup for eve-block mode.")
 
-(setq eve-sections '("search" "bind" "commit"))
+(setq eve-sections '("search" "bind" "commit" "watch"))
 (setq eve-subblocks '("not" "if" "then" "else"))
 (setq eve-infix '("+" "-" "/" "*"))
 (setq eve-filter '("=" "!=" "<" "<=" ">=" ">"))
@@ -110,6 +110,14 @@
             (setq levels (- levels 1)))))
       levels)))
 
+(defun eve-leading-levels-closed (diff)
+  (save-excursion
+    (forward-line diff)
+    (let ((bound (line-end-position)) (levels 0))
+      (while (eve-search-forward "^\s*[])]")
+        (setq levels (+ levels 1)))
+      levels)))
+
 ;; @FIXME: This is a bit of a time bomb -- it's not string aware.
 (defun eve-rewind-until (regexp)
   (let ((lines-back 0))
@@ -139,15 +147,10 @@
 
         ;; Walk forward line by line, indenting as we go.
         (while (>= lines-back 0)
-          ;; If we've *decreased* levels on *this* line, dedent ourselves by that many levels.
-          (let ((levels (eve-levels-opened 0)))
-            (when (< levels 0)
-              (setq cur-indent (max (+ cur-indent (* levels eve-indent-width)) 0))))
-
-          ;; If we've *increased* levels on the *previous* line, dedent ourselves by that many levels.
+          ;; If we've *changed* levels on the *previous* line, dedent ourselves by that many levels.
           (let ((levels (eve-levels-opened -1)))
-            (when (> levels 0)
-              (setq cur-indent (+ cur-indent (* levels eve-indent-width)))))
+            (when (not (equal levels 0))
+              (setq cur-indent (max (+ cur-indent (* levels eve-indent-width)) 0))))
 
           ;; If the previous line had an if statement, we'll indent one level.
           (let ((if-offset (eve-find-offset "if" -1 'font-lock-keyword-face)))
@@ -159,7 +162,11 @@
               (setq cur-indent (- cur-indent eve-indent-width))))
 
           (setq lines-back (- lines-back 1))
-          (forward-line 1))))
+          (forward-line 1))
+
+        ;; Leading closing brackets dedent the current line.
+        (let ((levels (eve-leading-levels-closed 0)))
+          (setq cur-indent (max (- cur-indent (* levels eve-indent-width)) 0)))))
 
     (when cur-indent
       (indent-line-to cur-indent))))
