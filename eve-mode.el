@@ -77,7 +77,7 @@
         (,eve-filter-regexp . font-lock-type-face)
         (,eve-infix-regexp . font-lock-type-face)
         (,eve-tag-regexp . font-lock-variable-name-face)
-        (,eve-misc-regexp . font-lock-comment-delimiter-face)))
+        (,eve-misc-regexp . font-lock-preprocessor-face)))
 
 (modify-syntax-entry ?\/ ". 12b" eve-syntax-table)
 (modify-syntax-entry ?\n "> b" eve-syntax-table)
@@ -103,7 +103,7 @@
   (save-excursion
     (forward-line diff)
     (let ((bound (line-end-position)) (levels 0))
-      (while (eve-search-forward "[])([]" bound)
+      (while (eve-search-forward "[])([]" bound 'font-lock-preprocessor-face)
         (let ((prev (string (char-before))))
           (if (or (equal prev "[" ) (equal prev "(" ))
               (setq levels (+ levels 1))
@@ -114,7 +114,7 @@
   (save-excursion
     (forward-line diff)
     (let ((bound (line-end-position)) (levels 0))
-      (while (eve-search-forward "^\s*[])]")
+      (while (eve-search-forward "^[\s\t]*[])]" bound 'font-lock-preprocessor-face)
         (setq levels (+ levels 1)))
       levels)))
 
@@ -135,6 +135,7 @@
   (let ((lines-back 0) cur-indent)
     (save-excursion
       ;; First, we scan back to the nearest section keyword.
+      (forward-line 0)
       (setq lines-back (eve-rewind-until (concat "^[\s\t]*" eve-sections-regexp)))
 
       ;; If we couldn't find one, we're just done trying to indent.
@@ -162,6 +163,9 @@
 
           (setq lines-back (- lines-back 1))
           (forward-line 1))
+
+        ;; Back up to the current line for final transient indentation checks.
+        (forward-line -1)
 
         ;; Leading closing brackets dedent the current line.
         (let ((levels (eve-leading-levels-closed 0)))
