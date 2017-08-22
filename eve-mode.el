@@ -34,9 +34,8 @@
 ;; other than "eve", the code block will be ignored.  It currently has
 ;; support for syntax highlighting and simple indentation.  Beginning
 ;; in 0.4, fenceless codeblocks are also supported via the `end`
-;; keyword.  This is the default behavior going forward.  The old
-;; behavior can be highlighted using `eve-markdown-mode`, also
-;; provided by this package.  Support will be added for syntax and
+;; keyword.  This is opt-in behavior via `eve-future-mode` (also
+;; provided by this package).  Support will be added for syntax and
 ;; build error reporting once the new language service is written.
 
 ;; [1]: http://witheve.com/
@@ -62,8 +61,8 @@
 (defconst eve-update-operator '(":=" "+=" "-=" "<-"))
 
 (defconst eve-comment-regexp "//.*$")
-(defconst eve-start-block-regexp (concat "^\s*" (regexp-opt '("search" "bind" "commit" "watch") 'words)))
-(defconst eve-end-block-regexp (concat "^\s*" (regexp-opt '("end") 'words)))
+(defconst eve-start-block-regexp (concat "^\\([ \t]*\\)\\<" (regexp-opt '("search" "bind" "commit" "watch") nil) "\\>"))
+(defconst eve-end-block-regexp (concat "^\\([ \t]*\\)" (regexp-opt '("end") 'words)))
 (defconst eve-sections-regexp (regexp-opt eve-sections 'words))
 (defconst eve-subblocks-regexp (regexp-opt eve-subblocks 'words))
 (defconst eve-infix-regexp (concat "\s" (regexp-opt eve-infix) "\s"))
@@ -144,7 +143,8 @@
       (setq lines-back (eve-rewind-until (concat "^[\s\t]*" eve-sections-regexp)))
 
       ;; If we couldn't find one, we're just done trying to indent.
-      (when (not (bobp))
+      (if (= lines-back 0)
+          (setq cur-indent 0)
         ;; Section headers are indented to zero, section contents start indented one level.
         (if (> lines-back 0)
             (setq cur-indent eve-indent-width)
@@ -197,15 +197,14 @@
   (pm-hbtchunkmode :head-reg "^\s*\\(?:[`]\\{3,\\}\\|[~]\\{3,\\}\\)\s*eve.*$"
                    :tail-reg "^\s*\\(?:[`]\\{3,\\}\\|[~]\\{3,\\}\\)\s*$"
                    :mode 'eve-block-mode
-                   :head-adjust-face 'font-lock-keyword-face
                    :font-lock-narrow t)
   "Eve block chunk."
   :group 'innermodes
   :type 'object)
 
 (defcustom  eve-pm-inner-eve-block
-  (pm-hbtchunkmode :head-reg eve-start-block-regexp ; "^[ \t]*[`]\\{3,\\}\\|[~]\\{3,\\}.*$"
-                   :tail-reg eve-end-block-regexp ; "^[ \t]*[`]\\{3,\\}\\|[~]\\{3,\\}[ \t]*$"
+  (pm-hbtchunkmode :head-reg eve-start-block-regexp
+                   :tail-reg eve-end-block-regexp
                    :mode 'eve-block-mode
                    :head-adjust-face 'font-lock-keyword-face
                    :font-lock-narrow t)
@@ -215,20 +214,20 @@
 
 (defcustom eve-pm-poly-eve
   (pm-polymode-one :hostmode 'eve-pm-host-eve-doc
-                     :innermode 'eve-pm-inner-eve-block)
+                   :innermode 'eve-pm-inner-eve-block)
   "Markdown typical configuration."
   :group 'polymodes
   :type 'object)
 
 (defcustom eve-pm-poly-markdown-eve
   (pm-polymode-one :hostmode 'eve-pm-host-eve-doc
-                     :innermode 'eve-markdown-pm-inner-eve-block)
+                   :innermode 'eve-markdown-pm-inner-eve-block)
   "Markdown typical configuration."
   :group 'polymodes
   :type 'object)
 
-(define-polymode eve-mode eve-pm-poly-eve)
-(define-polymode eve-markdown-mode eve-pm-poly-markdown-eve)
+(define-polymode eve-future-mode eve-pm-poly-eve)
+(define-polymode eve-mode eve-pm-poly-markdown-eve)
 
 (setq auto-mode-alist
       (append
