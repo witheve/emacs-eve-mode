@@ -3,8 +3,8 @@
 ;; Author: Joshua Cole <joshuafcole@gmail.com>
 ;; Maintainer: Joshua Cole <joshuafcole@gmail.com>
 ;; Created: 28 Jun 2017
-;; Modified: 19 Jul 2017
-;; Version: 0.1.1
+;; Modified: 21 Aug 2017
+;; Version: 0.1.2
 ;; Package-Requires: ((emacs "25") (polymode "1.0") (markdown-mode "2.0"))
 ;; Keywords: languages wp tools
 ;; URL: https://github.com/witheve/emacs-eve-mode
@@ -30,11 +30,14 @@
 ;; top of `polymode`.  Since Eve blocks (analagous to DB queries) are
 ;; conventionally embedded in markdown documents, markdown mode is
 ;; used as the host mode and code blocks are treated as executable eve
-;; blocks.  If the fenced code block has an `info string` with a value
+;; blocks. If the fenced code block has an `info string` with a value
 ;; other than "eve", the code block will be ignored.  It currently has
-;; support for syntax highlighting and simple indentation.  Support
-;; will be added for syntax and build error reporting once the new
-;; language service is written.
+;; support for syntax highlighting and simple indentation.  Beginning
+;; in 0.4, fenceless codeblocks are also supported via the `end`
+;; keyword.  This is the default behavior going forward.  The old
+;; behavior can be highlighted using `eve-markdown-mode`, also
+;; provided by this package.  Support will be added for syntax and
+;; build error reporting once the new language service is written.
 
 ;; [1]: http://witheve.com/
 
@@ -59,6 +62,8 @@
 (defconst eve-update-operator '(":=" "+=" "-=" "<-"))
 
 (defconst eve-comment-regexp "//.*$")
+(defconst eve-start-block-regexp (concat "^\s*" (regexp-opt '("search" "bind" "commit" "watch") 'words)))
+(defconst eve-end-block-regexp (concat "^\s*" (regexp-opt '("end") 'words)))
 (defconst eve-sections-regexp (regexp-opt eve-sections 'words))
 (defconst eve-subblocks-regexp (regexp-opt eve-subblocks 'words))
 (defconst eve-infix-regexp (concat "\s" (regexp-opt eve-infix) "\s"))
@@ -181,14 +186,6 @@
   (setq font-lock-defaults '((eve-font-lock-keywords)))
   (set (make-local-variable 'indent-line-function) 'eve-indent-line))
 
-
-(defun eve-retrieve-block-type ()
-  "Retrieve a code block's info string.  Defaults to 'eve-block'."
-  (save-excursion
-    (re-search-forward "^\\([`]\\{3,\\}\\|[~]\\{3,\\}\\)\s*\\(.*\\)\s*$" (line-end-position) t)
-    (let ((info (match-string 2)))
-      (if (or (not info) (equal info "") (equal info "eve")) "eve-block" info))))
-
 (defcustom eve-pm-host-eve-doc
   (pm-bchunkmode :mode 'markdown-mode
                  :init-functions '(eve-poly-markdown-remove-markdown-hooks))
@@ -196,23 +193,42 @@
   :group 'hostmodes
   :type 'object)
 
+(defcustom  eve-markdown-pm-inner-eve-block
+  (pm-hbtchunkmode :head-reg "^\s*\\(?:[`]\\{3,\\}\\|[~]\\{3,\\}\\)\s*eve.*$"
+                   :tail-reg "^\s*\\(?:[`]\\{3,\\}\\|[~]\\{3,\\}\\)\s*$"
+                   :mode 'eve-block-mode
+                   :head-adjust-face 'font-lock-keyword-face
+                   :font-lock-narrow t)
+  "Eve block chunk."
+  :group 'innermodes
+  :type 'object)
+
 (defcustom  eve-pm-inner-eve-block
-  (pm-hbtchunkmode-auto :head-reg "^[ \t]*[`]\\{3,\\}\\|[~]\\{3,\\}.*$"
-                        :tail-reg "^[ \t]*[`]\\{3,\\}\\|[~]\\{3,\\}[ \t]*$"
-                        :retriever-function 'eve-retrieve-block-type
-                        :font-lock-narrow t)
+  (pm-hbtchunkmode :head-reg eve-start-block-regexp ; "^[ \t]*[`]\\{3,\\}\\|[~]\\{3,\\}.*$"
+                   :tail-reg eve-end-block-regexp ; "^[ \t]*[`]\\{3,\\}\\|[~]\\{3,\\}[ \t]*$"
+                   :mode 'eve-block-mode
+                   :head-adjust-face 'font-lock-keyword-face
+                   :font-lock-narrow t)
   "Eve block chunk."
   :group 'innermodes
   :type 'object)
 
 (defcustom eve-pm-poly-eve
-  (pm-polymode-multi-auto :hostmode 'eve-pm-host-eve-doc
-                          :auto-innermode 'eve-pm-inner-eve-block)
+  (pm-polymode-one :hostmode 'eve-pm-host-eve-doc
+                     :innermode 'eve-pm-inner-eve-block)
+  "Markdown typical configuration."
+  :group 'polymodes
+  :type 'object)
+
+(defcustom eve-pm-poly-markdown-eve
+  (pm-polymode-one :hostmode 'eve-pm-host-eve-doc
+                     :innermode 'eve-markdown-pm-inner-eve-block)
   "Markdown typical configuration."
   :group 'polymodes
   :type 'object)
 
 (define-polymode eve-mode eve-pm-poly-eve)
+(define-polymode eve-markdown-mode eve-pm-poly-markdown-eve)
 
 (setq auto-mode-alist
       (append
